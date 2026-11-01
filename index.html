@@ -241,7 +241,7 @@ const KEY = 'ridler-meters-v1';
 const PKEY = 'ridler-meters-prefs';
 /* defaults from the latest bills: electricity 08/07–07/09/2026, water 31/07–30/09/2026 */
 const DEFAULTS = {
-  elec:  { rate: 53.83, extra: 9.19, vat: 18, kvaAmount: 18.18, fixedAmount: 55.22, fixedDays: 62, share: 50 },
+  elec:  { rate: 53.83, extra: 0,    vat: 18, kvaAmount: 18.18, fixedAmount: 55.22, fixedDays: 62, share: 50 },
   water: { rate: 8.51,  extra: 0,    vat: 0,  kvaAmount: 0,     fixedAmount: 0,     fixedDays: 61, share: 100 }
 };
 /* last readings printed on those bills, offered as the starting point on first use */
@@ -261,7 +261,6 @@ const DAY = 86400000;
 const FIELDS = {
   elec: [
     { k: 'rate',        label: 'מחיר לקוט"ש',                   unit: 'אג׳',   hint: 'כפי שמופיע בחשבון, לפני מע"מ' },
-    { k: 'extra',       label: 'עלות מערכתית לקוט"ש',           unit: 'אג׳',   hint: 'כפי שמופיע בחשבון ("חיוב עלות מערכתית")' },
     { k: 'vat',         label: 'מע"מ',                           unit: '%',     hint: 'כפי שמופיע בחשבון', max: 100 },
     { k: 'kvaAmount',   label: 'תשלום בגין הספק (KVA)',          unit: '₪',     hint: 'סה"כ השורה "תשלום בגין הספק" בחשבון, לפני מע"מ' },
     { k: 'fixedAmount', label: 'תשלום קבוע',                     unit: '₪',     hint: 'סה"כ השורה "תשלום קבוע" (חלוקה + אספקה), לפני מע"מ' },
@@ -369,6 +368,8 @@ function normTariff(t, m) {
   for (const k of Object.keys(DEFAULTS[m])) out[k] = (t && isNum(t[k])) ? t[k] : DEFAULTS[m][k];
   /* older saves kept KVA inside fixedAmount; don't add the default KVA on top of it */
   if (t && isNum(t.fixedAmount) && !isNum(t.kvaAmount)) out.kvaAmount = 0;
+  /* the tenant is not charged the electricity system cost (decided 11/2026) */
+  if (m === 'elec') out.extra = 0;
   return out;
 }
 function normalize(o) {
@@ -860,10 +861,9 @@ function renderSettings() {
     h += `<section class="card mcard-${m}"><h2><span class="mico" aria-hidden="true">${M.icon}</span>תעריפי ${M.name}<span class="saved-flag" id="flag-${m}">נשמר ✓</span></h2>`;
     if (m === 'elec') h += `<details class="explain"><summary>מה זה כל רכיב בחשבון?</summary>
       <p><b>מחיר לקוט"ש</b>: המחיר של החשמל עצמו, לפי הצריכה.</p>
-      <p><b>עלות מערכתית</b>: חיוב נוסף לכל קוט"ש שנצרך, על עלויות מערכת החשמל (ניהול הרשת, רזרבות ואנרגיה מתחדשת). בחשבון הוא מופיע תחת "חיובים וזיכויים שונים".</p>
       <p><b>תשלום בגין הספק</b>: לפי גודל החיבור לחשמל (3×25 אמפר), לא לפי הצריכה.</p>
       <p><b>תשלום קבוע</b>: דמי חלוקה ואספקה קבועים, גם בלי צריכה.</p>
-      <p>ההנחה לזכאים והזיכוי על הייצור הסולארי שייכים לך, ולכן לא נכנסים לחישוב של השוכר.</p></details>`;
+      <p>העלות המערכתית, ההנחה לזכאים והזיכוי על הייצור הסולארי לא נכנסים לחישוב של השוכר.</p></details>`;
     else h += `<p class="hint" style="margin-bottom:12px">בחשבון המים אין מע"מ נפרד, כי המחיר למ"ק כבר כולל אותו.</p>`;
     for (const f of FIELDS[m]) {
       const id = `set-${m}-${f.k}`;
